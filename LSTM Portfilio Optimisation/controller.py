@@ -4,10 +4,11 @@ def main():
 	n_entities, headings, raw_data =  currency_data()
 
 	random.seed(0)
-	
-	training_set, training_prices, test_set, test_prices = fix_data(headings, raw_data, 5)
+	testing_weeks = int(0.75 * len(raw_data) / (24 * 7))
+	training_set, training_prices, test_set, test_prices = fix_data(headings, raw_data, testing_weeks)
 	rnn = network.RNN(n_entities, int((len(raw_data[0]) - 2) / n_entities), 7 * 24)
-	print(rnn.basic_train(training_set, training_prices, test_set, test_prices))
+	for _ in range(100):
+		print(rnn.basic_train(training_set, training_prices, test_set, test_prices) / testing_weeks)
 
 
 def currency_data():
@@ -27,7 +28,7 @@ def currency_data():
 					if '_' in key:
 						currencies.add(key.split('_')[0])
 						currency_keys.add(key.split('_')[1])
-						
+
 				btc_row = [0, 0] + [1] * (len(currency_keys) - 2)
 				btc_row_headers = ['BTCBTC_log_return', 'BTCBTC_volume'] + [k for k in currency_keys if 'volume' != k and 'log' != k]
 
@@ -46,30 +47,39 @@ def fix_data(headings, raw_data, n_testing_weeks):
 	next_close = []
 	for i in range(len(raw_data) - 8 * 24):
 		weekly_data = []
-		
+
 		for hour in raw_data[i:i + 7 * 24]:
-			hour_nn_input = []			
-			
-			for i, h in enumerate(headings):
+			hour_nn_input = []
+
+			for j, h in enumerate(headings):
 				if h == 'BTCUSDT_log_return':
-					hour_nn_input.append(-hour[i])
+					hour_nn_input.append(-hour[j])
 					continue
 				if h == 'BTCUSDT_open' or h == 'BTCUSDT_close':
-					hour_nn_input.append(1 / hour[i])
+					hour_nn_input.append(1 / hour[j])
 					continue
 				if h == 'timestamp':
 					continue
 				if h == 'hour':
-					hour_nn_input.append(hour[i] / 24)
+					hour_nn_input.append(hour[j] / 24)
 					continue
 				if h == 'day':
-					hour_nn_input.append(hour[i] / 6)
+					hour_nn_input.append(hour[j] / 6)
 					continue
-				hour_nn_input.append(hour[i])
+				hour_nn_input.append(hour[j])
 
 
 			weekly_data.append(hour_nn_input)
-		next_close.append([raw_data[i + 7 * 24 + 1][j] for j, h in enumerate(headings) if '_close' in h] + [1])
+		next_close_data = []
+		next_open_data = []
+		for j, h in enumerate(headings):
+			if '_close' in h:
+				if 'BTCUSDT' in h:
+
+					next_close_data.append((1 / raw_data[i + 7 * 24 + 1][j]) / (1 / raw_data[i + 7 * 24][j]))
+				else:
+					next_close_data.append((raw_data[i + 7 * 24 + 1][j] / raw_data[i + 7 * 24][j]))
+		next_close.append(next_close_data + [1])
 		# TODO: find a better way of doing this
 		weekly_input.append(weekly_data)
 

@@ -24,7 +24,6 @@ class RNN:
 		self.input_tensor = tf.placeholder(tf.float32, [None, n_steps, n_entities * n_features + 2])
 		#vector of prices to use as the  is an array of portfolio weights
 		self.prices = tf.placeholder(tf.float32, [None, n_entities])
-
 		#RNN parameters
 		self.weights =tf.Variable(tf.random_normal([hidden_layers, n_entities]))
 		self.bias = tf.Variable(tf.random_normal([n_entities]))
@@ -52,4 +51,6 @@ class RNN:
 
 	def basic_train(self, input, prices, testing_input, testing_prices):
 		self.session.run(self.optimizer, feed_dict={self.input_tensor: input, self.prices: prices})
-		return self.session.run([self.prediction, self.prices, self.portfolio_value], feed_dict={self.input_tensor: testing_input, self.prices: testing_prices})
+		return self.session.run(self.portfolio_value, feed_dict={self.input_tensor: testing_input, self.prices: testing_prices})
+
+	
