@@ -4,7 +4,7 @@
 import tensorflow as tf
 
 class RNN:
-	def __init__(self, n_entities, n_features, n_steps, hidden_layers=2, learning_rate=0.01):
+	def __init__(self, n_entities, n_features, n_steps, hidden_layers=2, learning_rate=1):
 		"""
 			Arguments
 			-------------
@@ -25,14 +25,14 @@ class RNN:
 		#vector of prices to use as the  is an array of portfolio weights
 		self.prices = tf.placeholder(tf.float32, [None, n_entities])
 		#RNN parameters
-		self.weights =tf.Variable(tf.random_normal([hidden_layers, n_entities]))
+		self.weights = tf.Variable(tf.random_normal([hidden_layers, n_entities]))
 		self.bias = tf.Variable(tf.random_normal([n_entities]))
 
 		#initialize tensorflow
 		self.prediction = self.rnn_eval()
 
 		#calculate the portfolio value
-		self.portfolio_value = tf.reduce_sum(tf.multiply(self.prediction,self.prices))
+		self.portfolio_value = tf.reduce_mean(tf.reduce_sum(tf.multiply(self.prediction, self.prices), 1))
 		# TODO: Perhaps add trading costs
 		#optimize function
 		self.to_minimize = - self.portfolio_value
@@ -52,5 +52,35 @@ class RNN:
 	def basic_train(self, input, prices, testing_input, testing_prices):
 		self.session.run(self.optimizer, feed_dict={self.input_tensor: input, self.prices: prices})
 		return self.session.run(self.portfolio_value, feed_dict={self.input_tensor: testing_input, self.prices: testing_prices})
+
+	def train_to_max(self, input, prices, testing_input, testing_prices, tolerance=1000):
+		#backup weights
+		weights = self.weights[:]
+		bias = self.bias[:]
+
+		peak = self.session.run(self.portfolio_value, feed_dict={self.input_tensor: testing_input, self.prices: testing_prices})
+		print(peak)
+
+		i = 0
+		while i < tolerance:
+			#train the network with one batch
+			self.session.run(self.optimizer, feed_dict={self.input_tensor: input, self.prices: prices})
+			current = self.session.run(self.portfolio_value, feed_dict={self.input_tensor: testing_input, self.prices: testing_prices})
+			
+			if current <= peak:
+				i += 1
+			else:
+				i = 0
+				peak = current
+				weights = self.weights[:]
+				bias = self.bias[:]
+			print(i, current)
+
+		self.session.run(self.weights.assign(weights))
+		self.session.run(self.bias.assign(bias))
+
+		#save the network
+
+
 
 	
